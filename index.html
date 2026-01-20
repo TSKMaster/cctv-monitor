@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>TSK Master CCTV</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
+        /* Сетка 2x2 на весь экран */
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            grid-template-rows: 50vh 50vh; 
+            gap: 2px; 
+            background: #333; 
+            height: 100vh;
+        }
+        .video-container {
+            position: relative;
+            width: 100%; height: 100%; background: #000;
+        }
+        video { width: 100%; height: 100%; object-fit: fill; }
+        
+        /* Надпись загрузки */
+        .status {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #aaa; font-size: 1.2rem; z-index: 0;
+        }
+        /* Ошибка */
+        .error { color: #ff4444; }
+    </style>
+</head>
+<body>
+
+<div class="grid">
+    <div class="video-container">
+        <div class="status" id="status1">Cam 1 Loading...</div>
+        <video id="video1" autoplay muted controls playsinline></video>
+    </div>
+    <div class="video-container">
+        <div class="status" id="status2">Cam 2 Loading...</div>
+        <video id="video2" autoplay muted controls playsinline></video>
+    </div>
+    <div class="video-container">
+        <div class="status" id="status3">Cam 3 Loading...</div>
+        <video id="video3" autoplay muted controls playsinline></video>
+    </div>
+    <div class="video-container">
+        <div class="status" id="status4">Cam 4 Loading...</div>
+        <video id="video4" autoplay muted controls playsinline></video>
+    </div>
+</div>
+
+<script>
+    // ВАШ ВНЕШНИЙ ДОМЕН (Туннель)
+    const BASE_URL = 'https://vms.tskmaster.kz';
+
+    function loadStream(videoId, streamName, statusId) {
+        var video = document.getElementById(videoId);
+        var statusMsg = document.getElementById(statusId);
+        
+        // Формируем полный путь к плейлисту
+        var source = `${BASE_URL}/${streamName}/index.m3u8`;
+
+        if (Hls.isSupported()) {
+            var hls = new Hls({
+                liveSyncDurationCount: 3, // Держим низкую задержку
+                debug: false,
+            });
+            hls.loadSource(source);
+            hls.attachMedia(video);
+            
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                statusMsg.style.display = 'none'; // Скрываем текст при старте
+                video.play().catch(e => console.log("Autoplay blocked:", e));
+            });
+
+            hls.on(Hls.Events.ERROR, function (event, data) {
+                if (data.fatal) {
+                    console.log(`Error on ${streamName}: ${data.type}`);
+                    statusMsg.innerText = "Error: " + streamName;
+                    statusMsg.className = "status error";
+                    statusMsg.style.display = 'block';
+                    hls.startLoad(); // Пытаемся перезапустить
+                }
+            });
+        }
+        // Для iPhone/Safari (нативный HLS)
+        else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = source;
+            video.addEventListener('loadedmetadata', function() {
+                statusMsg.style.display = 'none';
+                video.play();
+            });
+        }
+    }
+
+    // Запускаем потоки
+    loadStream('video1', 'cam1', 'status1');
+    loadStream('video2', 'cam2', 'status2');
+    loadStream('video3', 'cam3', 'status3');
+    loadStream('video4', 'cam4', 'status4');
+</script>
+
+</body>
+</html>
